@@ -15,6 +15,7 @@ public:
         Ignore,
         Close,
         Maximize,
+        FullScreen,
     };
     Q_ENUM(DoubleClickBehavior)
 
@@ -27,22 +28,29 @@ public:
     enum WindowSizeBehavior {
         Auto,
         Maximized,
+        Windowed,
     };
     Q_ENUM(WindowSizeBehavior)
 
     static Settings *instance();
 
     bool stayOnTop();
+    bool useLightCheckerboard();
     DoubleClickBehavior doubleClickBehavior() const;
     MouseWheelBehavior mouseWheelBehavior() const;
     WindowSizeBehavior initWindowSizeBehavior() const;
     Qt::HighDpiScaleFactorRoundingPolicy hiDpiScaleFactorBehavior() const;
 
     void setStayOnTop(bool on);
+    void setUseLightCheckerboard(bool light);
     void setDoubleClickBehavior(DoubleClickBehavior dcb);
     void setMouseWheelBehavior(MouseWheelBehavior mwb);
     void setInitWindowSizeBehavior(WindowSizeBehavior wsb);
     void setHiDpiScaleFactorBehavior(Qt::HighDpiScaleFactorRoundingPolicy hidpi);
+
+    void applyUserShortcuts(QWidget * widget);
+    bool setShortcutsForAction(QWidget * widget, const QString & objectName,
+                               QList<QKeySequence> shortcuts, bool writeConfig = true);
 
 private:
     Settings();
@@ -55,4 +63,3 @@ signals:
 
 public slots:
 };
-

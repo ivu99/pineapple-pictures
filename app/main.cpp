@@ -7,19 +7,20 @@
 #include "playlistmanager.h"
 #include "settings.h"
 
+#ifdef Q_OS_MACOS
+#include "fileopeneventhandler.h"
+#endif // Q_OS_MACOS
+
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
 #include <QTranslator>
 #include <QUrl>
 
-// QM_FILE_INSTALL_DIR should be defined from the CMakeLists file.
-#ifndef QM_FILE_INSTALL_DIR
-#define QM_FILE_INSTALL_DIR ":/i18n/"
-#endif // QM_FILE_INSTALL_DIR
-
 int main(int argc, char *argv[])
 {
+    QCoreApplication::setApplicationName("Pineapple Pictures");
+    QCoreApplication::setApplicationVersion(PPIC_VERSION_STRING);
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Settings::instance()->hiDpiScaleFactorBehavior());
 
     QApplication a(argc, argv);
@@ -28,27 +29,55 @@ int main(int argc, char *argv[])
 #endif
 
     QTranslator translator;
-    QString qmDir;
-#ifdef _WIN32
-    qmDir = QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("translations");
+#if defined(TRANSLATION_RESOURCE_EMBEDDING)
+    const QString qmDir = QLatin1String(":/i18n/");
+#elif defined(QM_FILE_INSTALL_ABSOLUTE_DIR)
+    const QString qmDir = QT_STRINGIFY(QM_FILE_INSTALL_ABSOLUTE_DIR);
 #else
-    qmDir = QT_STRINGIFY(QM_FILE_INSTALL_DIR);
+    const QString qmDir = QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("translations");
 #endif
     if (translator.load(QLocale(), QLatin1String("PineapplePictures"), QLatin1String("_"), qmDir)) {
-        a.installTranslator(&translator);
+        QCoreApplication::installTranslator(&translator);
     }
-    a.setApplicationName("Pineapple Pictures");
-    a.setApplicationDisplayName(QCoreApplication::translate("main", "Pineapple Pictures"));
 
+    QGuiApplication::setApplicationDisplayName(QCoreApplication::translate("main", "Pineapple Pictures"));
+
+    // commandline options
+    QCommandLineOption supportedImageFormats(QStringLiteral("supported-image-formats"), QCoreApplication::translate("main", "List supported image format suffixes, and quit program."));
     // parse commandline arguments
     QCommandLineParser parser;
+    parser.addOption(supportedImageFormats);
     parser.addPositionalArgument("File list", QCoreApplication::translate("main", "File list."));
     parser.addHelpOption();
-
     parser.process(a);
+
+    if (parser.isSet(supportedImageFormats)) {
+#if QT_VERSION < QT_VERSION_CHECK(6, 9, 0)
+        fputs(qPrintable(MainWindow::supportedImageFormats().join(QChar('\n'))), stdout);
+        ::exit(EXIT_SUCCESS);
+#else
+        QCommandLineParser::showMessageAndExit(QCommandLineParser::MessageType::Information,
+                                               MainWindow::supportedImageFormats().join(QChar('\n')));
+#endif
+    }
 
     MainWindow w;
     w.show();
+
+#ifdef Q_OS_MACOS
+    FileOpenEventHandler * fileOpenEventHandler = new FileOpenEventHandler(&a);
+    a.installEventFilter(fileOpenEventHandler);
+    a.connect(fileOpenEventHandler, &FileOpenEventHandler::fileOpen, [&w](const QUrl & url){
+        if (w.isHidden()) {
+            w.setWindowOpacity(1);
+            w.showNormal();
+        } else {
+            w.activateWindow();
+        }
+        w.showUrls({url});
+        w.initWindowSize();
+    });
+#endif // Q_OS_MACOS
 
     QStringList urlStrList = parser.positionalArguments();
     QList<QUrl> && urlList = PlaylistManager::convertToUrlList(urlStrList);
@@ -59,5 +88,5 @@ int main(int argc, char *argv[])
 
     w.initWindowSize();
 
-    return a.exec();
+    return QApplication::exec();
 }

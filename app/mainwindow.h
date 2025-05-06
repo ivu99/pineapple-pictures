@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Gary Wang <wzc782970009@gmail.com>
+// SPDX-FileCopyrightText: 2025 Gary Wang <git@blumia.net>
 //
 // SPDX-License-Identifier: MIT
 
@@ -20,6 +20,7 @@
 QT_BEGIN_NAMESPACE
 class QGraphicsOpacityEffect;
 class QGraphicsView;
+class QFileSystemWatcher;
 QT_END_NAMESPACE
 
 class ActionManager;
@@ -42,9 +43,11 @@ public:
     QUrl currentImageFileUrl() const;
 
     void clearGallery();
-    void loadGalleryBySingleLocalFile(const QString &path);
     void galleryPrev();
     void galleryNext();
+    void galleryCurrent(bool showLoadImageHintWhenEmpty, bool reloadImage);
+
+    static QStringList supportedImageFormats();
 
 protected slots:
     void showEvent(QShowEvent *event) override;
@@ -57,6 +60,9 @@ protected slots:
     void wheelEvent(QWheelEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dragMoveEvent(QDragMoveEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
     void centerWindow();
     void closeWindow();
@@ -82,9 +88,13 @@ private slots:
     void on_actionZoomOut_triggered();
     void on_actionToggleCheckerboard_triggered();
     void on_actionRotateClockwise_triggered();
+    void on_actionRotateCounterClockwise_triggered();
 
     void on_actionPrevPicture_triggered();
     void on_actionNextPicture_triggered();
+
+    void on_actionTogglePauseAnimation_triggered();
+    void on_actionAnimationNextFrame_triggered();
 
     void on_actionHorizontalFlip_triggered();
     void on_actionFitInView_triggered();
@@ -92,6 +102,7 @@ private slots:
     void on_actionCopyPixmap_triggered();
     void on_actionCopyFilePath_triggered();
     void on_actionPaste_triggered();
+    void on_actionTrash_triggered();
     void on_actionToggleStayOnTop_triggered();
     void on_actionToggleProtectMode_triggered();
     void on_actionToggleAvoidResetTransform_triggered();
@@ -102,6 +113,9 @@ private slots:
     void on_actionQuitApp_triggered();
 
 private:
+    bool updateFileWatcher(const QString & basePath = QString());
+
+private:
     ActionManager *m_am;
     PlaylistManager *m_pm;
 
@@ -109,6 +123,7 @@ private:
     QPropertyAnimation *m_fadeOutAnimation;
     QPropertyAnimation *m_floatUpAnimation;
     QParallelAnimationGroup *m_exitAnimationGroup;
+    QFileSystemWatcher *m_fileSystemWatcher;
     ToolButton *m_closeButton;
     ToolButton *m_prevButton;
     ToolButton *m_nextButton;

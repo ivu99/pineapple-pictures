@@ -30,9 +30,13 @@ public:
     QAction *actionZoomOut;
     QAction *actionToggleCheckerboard;
     QAction *actionRotateClockwise;
+    QAction *actionRotateCounterClockwise;
 
     QAction *actionPrevPicture;
     QAction *actionNextPicture;
+
+    QAction *actionTogglePauseAnimation;
+    QAction *actionAnimationNextFrame;
 
     QAction *actionHorizontalFlip;
     QAction *actionFitInView;
@@ -40,6 +44,7 @@ public:
     QAction *actionCopyPixmap;
     QAction *actionCopyFilePath;
     QAction *actionPaste;
+    QAction *actionTrash;
     QAction *actionToggleStayOnTop;
     QAction *actionToggleProtectMode;
     QAction *actionToggleAvoidResetTransform;

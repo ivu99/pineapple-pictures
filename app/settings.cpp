@@ -8,6 +8,9 @@
 #include <QStandardPaths>
 #include <QDebug>
 #include <QDir>
+#include <QAction>
+#include <QWidget>
+#include <QKeySequence>
 #include <QMetaEnum>
 
 namespace QEnumHelper
@@ -47,6 +50,11 @@ bool Settings::stayOnTop()
     return m_qsettings->value("stay_on_top", true).toBool();
 }
 
+bool Settings::useLightCheckerboard()
+{
+    return m_qsettings->value("use_light_checkerboard", false).toBool();
+}
+
 Settings::DoubleClickBehavior Settings::doubleClickBehavior() const
 {
     QString result = m_qsettings->value("double_click_behavior", "Close").toString();
@@ -81,6 +89,12 @@ void Settings::setStayOnTop(bool on)
     m_qsettings->sync();
 }
 
+void Settings::setUseLightCheckerboard(bool light)
+{
+    m_qsettings->setValue("use_light_checkerboard", light);
+    m_qsettings->sync();
+}
+
 void Settings::setDoubleClickBehavior(DoubleClickBehavior dcb)
 {
     m_qsettings->setValue("double_click_behavior", QEnumHelper::toString(dcb));
@@ -103,6 +117,47 @@ void Settings::setHiDpiScaleFactorBehavior(Qt::HighDpiScaleFactorRoundingPolicy 
 {
     m_qsettings->setValue("hidpi_scale_factor_behavior", QEnumHelper::toString(hidpi));
     m_qsettings->sync();
+}
+
+void Settings::applyUserShortcuts(QWidget *widget)
+{
+    m_qsettings->beginGroup("shortcuts");
+    const QStringList shortcutNames = m_qsettings->allKeys();
+    for (const QString & name : shortcutNames) {
+        QList<QKeySequence> shortcuts = m_qsettings->value(name).value<QList<QKeySequence>>();
+        setShortcutsForAction(widget, name, shortcuts, false);
+    }
+    m_qsettings->endGroup();
+}
+
+bool Settings::setShortcutsForAction(QWidget *widget, const QString &objectName,
+                                     QList<QKeySequence> shortcuts, bool writeConfig)
+{
+    QAction * targetAction = nullptr;
+    for (QAction * action : widget->actions()) {
+        if (action->objectName() == objectName) {
+            targetAction = action;
+        } else {
+            for (const QKeySequence & shortcut : std::as_const(shortcuts)) {
+                if (action->shortcuts().contains(shortcut)) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    if (targetAction) {
+        targetAction->setShortcuts(shortcuts);
+    }
+
+    if (targetAction && writeConfig) {
+        m_qsettings->beginGroup("shortcuts");
+        m_qsettings->setValue(objectName, QVariant::fromValue(shortcuts));
+        m_qsettings->endGroup();
+        m_qsettings->sync();
+    }
+
+    return true;
 }
 
 #if defined(FLAG_PORTABLE_MODE_SUPPORT) && defined(Q_OS_WIN)
@@ -138,10 +193,12 @@ Settings::Settings()
 #endif // defined(FLAG_PORTABLE_MODE_SUPPORT) && defined(Q_OS_WIN)
 
     if (configPath.isEmpty()) {
-        // %LOCALAPPDATA%\<APPNAME> under Windows, ~/.config/<APPNAME> under Linux.
+        // Should be %LOCALAPPDATA%\<APPNAME> under Windows, ~/.config/<APPNAME> under Linux.
         configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     }
 
     m_qsettings = new QSettings(QDir(configPath).absoluteFilePath("config.ini"), QSettings::IniFormat, this);
+
+    qRegisterMetaType<QList<QKeySequence>>();
 }
 

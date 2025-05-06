@@ -15,7 +15,7 @@ class GraphicsView : public QGraphicsView
 public:
     GraphicsView(QWidget *parent = nullptr);
 
-    void showFileFromPath(const QString &filePath, bool requestGallery = false);
+    void showFileFromPath(const QString &filePath);
 
     void showImage(const QPixmap &pixmap);
     void showImage(const QImage &image);
@@ -48,7 +48,6 @@ public:
 signals:
     void navigatorViewRequired(bool required, QTransform transform);
     void viewportRectChanged();
-    void requestGallery(const QString &filePath);
 
 public slots:
     void toggleCheckerboard(bool invertCheckerboardColor = false);
@@ -60,14 +59,12 @@ private:
     void wheelEvent(QWheelEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
 
-    void dragEnterEvent(QDragEnterEvent *event) override;
-    void dragMoveEvent(QDragMoveEvent *event) override;
-    void dropEvent(QDropEvent *event) override;
-
     bool isThingSmallerThanWindowWith(const QTransform &transform) const;
     bool shouldIgnoreMousePressMoveEvent(const QMouseEvent *event) const;
     void setCheckerboardEnabled(bool enabled, bool invertColor = false);
     void applyTransformationModeByScaleFactor();
+
+    inline bool shouldAvoidTransform() const;
 
     // Consider switch to 3 state for "no fit", "always fit" and "fit when view is smaller"?
     // ... or even more? e.g. "fit/snap width" things...
@@ -75,7 +72,8 @@ private:
     bool m_enableFitInView = false;
     bool m_avoidResetTransform = false;
     bool m_checkerboardEnabled = false;
-    bool m_isLastCheckerboardColorInverted = false;
+    bool m_useLightCheckerboard = false;
+    bool m_firstUserMediaLoaded = false;
 };
 
 #endif // GRAPHICSVIEW_H

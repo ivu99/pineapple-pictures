@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022 Gary Wang <wzc782970009@gmail.com>
+# SPDX-FileCopyrightText: 2024 Gary Wang <git@blumia.net>
 #
 # SPDX-License-Identifier: MIT
 
@@ -7,6 +7,11 @@ greaterThan(QT_MAJOR_VERSION, 5): QT += svgwidgets
 
 TARGET = ppic
 TEMPLATE = app
+DEFINES += PPIC_VERSION_STRING=\\\"x.y.z\\\"
+
+win32 {
+    DEFINES += FLAG_PORTABLE_MODE_SUPPORT=1
+}
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which has been marked as deprecated (the exact warnings
@@ -19,7 +24,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
-CONFIG += c++11 lrelease embed_translations
+CONFIG += c++17 lrelease embed_translations
 
 SOURCES += \
     app/aboutdialog.cpp \
@@ -38,7 +43,9 @@ SOURCES += \
     app/metadatadialog.cpp \
     app/exiv2wrapper.cpp \
     app/actionmanager.cpp \
-    app/playlistmanager.cpp
+    app/playlistmanager.cpp \
+    app/shortcutedit.cpp \
+    app/fileopeneventhandler.cpp
 
 HEADERS += \
     app/aboutdialog.h \
@@ -56,10 +63,12 @@ HEADERS += \
     app/metadatadialog.h \
     app/exiv2wrapper.h \
     app/actionmanager.h \
-    app/playlistmanager.h
+    app/playlistmanager.h \
+    app/shortcutedit.h \
+    app/fileopeneventhandler.h
 
 TRANSLATIONS = \
-    app/translations/PineapplePictures.ts \
+    app/translations/PineapplePictures_en.ts \
     app/translations/PineapplePictures_zh_CN.ts \
     app/translations/PineapplePictures_de.ts \
     app/translations/PineapplePictures_es.ts \
@@ -85,7 +94,7 @@ RC_ICONS = assets/icons/app-icon.ico
 # Windows only, for rc file (we're not going to use the .rc file in this repo)
 QMAKE_TARGET_PRODUCT = Pineapple Pictures
 QMAKE_TARGET_DESCRIPTION = Pineapple Pictures - Image Viewer
-QMAKE_TARGET_COPYRIGHT = MIT/Expat License - Copyright (C) 2020 Gary Wang
+QMAKE_TARGET_COPYRIGHT = MIT/Expat License - Copyright (C) 2024 Gary Wang
 
 # MSVC only, since QMake doesn't have a CMAKE_CXX_STANDARD_LIBRARIES or cpp_winlibs similar thing
 win32-msvc* {

@@ -5,15 +5,22 @@
 #include "settingsdialog.h"
 
 #include "settings.h"
+#include "shortcutedit.h"
 
+#include <QAction>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFormLayout>
+#include <QKeySequenceEdit>
+#include <QScrollArea>
+#include <QSplitter>
 #include <QStringListModel>
+#include <QMessageBox>
 
 SettingsDialog::SettingsDialog(QWidget *parent)
     : QDialog(parent)
     , m_stayOnTop(new QCheckBox)
+    , m_useLightCheckerboard(new QCheckBox)
     , m_doubleClickBehavior(new QComboBox)
     , m_mouseWheelBehavior(new QComboBox)
     , m_initWindowSizeBehavior(new QComboBox)
@@ -21,12 +28,55 @@ SettingsDialog::SettingsDialog(QWidget *parent)
 {
     this->setWindowTitle(tr("Settings"));
 
-    QFormLayout * settingsForm = new QFormLayout(this);
+    QHBoxLayout * mainLayout = new QHBoxLayout(this);
+    QTabWidget * settingsTabs = new QTabWidget(this);
+    mainLayout->addWidget(settingsTabs);
+
+    QWidget * settingsFormHolder = new QWidget;
+    QFormLayout * settingsForm = new QFormLayout(settingsFormHolder);
+    settingsTabs->addTab(settingsFormHolder, tr("Options"));
+
+    QSplitter * shortcutEditorSplitter = new QSplitter;
+    shortcutEditorSplitter->setOrientation(Qt::Vertical);
+    shortcutEditorSplitter->setChildrenCollapsible(false);
+    QScrollArea * shortcutScrollArea = new QScrollArea;
+    shortcutEditorSplitter->addWidget(shortcutScrollArea);
+    shortcutScrollArea->setWidgetResizable(true);
+    shortcutScrollArea->setMinimumHeight(200);
+    QWidget * shortcutsFormHolder = new QWidget;
+    QFormLayout * shortcutsForm = new QFormLayout(shortcutsFormHolder);
+    shortcutScrollArea->setWidget(shortcutsFormHolder);
+    settingsTabs->addTab(shortcutEditorSplitter, tr("Shortcuts"));
+
+    for (const QAction * action : parent->actions()) {
+        ShortcutEdit * shortcutEdit = new ShortcutEdit;
+        shortcutEdit->setObjectName(QLatin1String("shortcut_") + action->objectName());
+        shortcutEdit->setShortcuts(action->shortcuts());
+        shortcutsForm->addRow(action->text(), shortcutEdit);
+        connect(shortcutEdit, &ShortcutEdit::editButtonClicked, this, [=](){
+            if (shortcutEditorSplitter->count() == 1) shortcutEditorSplitter->addWidget(new QWidget);
+            ShortcutEditor * shortcutEditor = new ShortcutEditor(shortcutEdit);
+            shortcutEditor->setDescription(tr("Editing shortcuts for action \"%1\":").arg(action->text()));
+            QWidget * oldEditor = shortcutEditorSplitter->replaceWidget(1, shortcutEditor);
+            shortcutEditorSplitter->setSizes({shortcutEditorSplitter->height(), 1});
+            oldEditor->deleteLater();
+        });
+        connect(shortcutEdit, &ShortcutEdit::applyShortcutsRequested, this, [=](QList<QKeySequence> newShortcuts){
+            bool succ = Settings::instance()->setShortcutsForAction(parent, shortcutEdit->objectName().mid(9),
+                                                                    newShortcuts);
+            if (!succ) {
+                QMessageBox::warning(this, tr("Failed to set shortcuts"),
+                                     tr("Please check if shortcuts are duplicated with existing shortcuts."));
+            }
+            shortcutEdit->setShortcuts(action->shortcuts());
+        });
+    }
 
     static QList< QPair<Settings::DoubleClickBehavior, QString> > _dc_options {
         { Settings::DoubleClickBehavior::Ignore, tr("Do nothing") },
         { Settings::DoubleClickBehavior::Close, tr("Close the window") },
-        { Settings::DoubleClickBehavior::Maximize, tr("Toggle maximize") }
+        { Settings::DoubleClickBehavior::Maximize, tr("Toggle maximize") },
+        { Settings::DoubleClickBehavior::FullScreen, tr("Toggle fullscreen") }
     };
 
     static QList< QPair<Settings::MouseWheelBehavior, QString> > _mw_options {
@@ -36,7 +86,8 @@ SettingsDialog::SettingsDialog(QWidget *parent)
 
     static QList< QPair<Settings::WindowSizeBehavior, QString> > _iws_options {
         { Settings::WindowSizeBehavior::Auto, tr("Auto size") },
-        { Settings::WindowSizeBehavior::Maximized, tr("Maximized") }
+        { Settings::WindowSizeBehavior::Maximized, tr("Maximized") },
+        { Settings::WindowSizeBehavior::Windowed, tr("Windowed") }
     };
 
     static QList< QPair<Qt::HighDpiScaleFactorRoundingPolicy, QString> > _hidpi_options {
@@ -67,12 +118,14 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     }
 
     settingsForm->addRow(tr("Stay on top when start-up"), m_stayOnTop);
+    settingsForm->addRow(tr("Use light-color checkerboard"), m_useLightCheckerboard);
     settingsForm->addRow(tr("Double-click behavior"), m_doubleClickBehavior);
     settingsForm->addRow(tr("Mouse wheel behavior"), m_mouseWheelBehavior);
     settingsForm->addRow(tr("Default window size"), m_initWindowSizeBehavior);
     settingsForm->addRow(tr("HiDPI scale factor rounding policy"), m_hiDpiRoundingPolicyBehavior);
 
     m_stayOnTop->setChecked(Settings::instance()->stayOnTop());
+    m_useLightCheckerboard->setChecked(Settings::instance()->useLightCheckerboard());
     m_doubleClickBehavior->setModel(new QStringListModel(dcbDropDown));
     Settings::DoubleClickBehavior dcb = Settings::instance()->doubleClickBehavior();
     m_doubleClickBehavior->setCurrentIndex(static_cast<int>(dcb));
@@ -93,6 +146,10 @@ SettingsDialog::SettingsDialog(QWidget *parent)
 
     connect(m_stayOnTop, &QCheckBox::stateChanged, this, [ = ](int state){
         Settings::instance()->setStayOnTop(state == Qt::Checked);
+    });
+
+    connect(m_useLightCheckerboard, &QCheckBox::stateChanged, this, [ = ](int state){
+        Settings::instance()->setUseLightCheckerboard(state == Qt::Checked);
     });
 
     connect(m_doubleClickBehavior, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [ = ](int index){
